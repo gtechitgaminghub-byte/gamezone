@@ -1,0 +1,331 @@
+Build a PC Gaming Rental Management App for Windows PCs connected on the same LAN.
+The app must:
+
+
+Install on all gaming PCs
+
+
+Have Super Admin, Admin, and Regular User (PC Renter) roles
+
+
+Track login time, remaining playtime, and auto-logout users
+
+
+Features:
+
+
+App auto-starts on Windows boot
+
+
+Users must log in before accessing games
+
+
+Admin dashboard shows all PCs and active sessions
+
+
+Admin can assign playtime and force logout
+
+
+System automatically logs out renters when time expires
+
+
+Games close automatically on logout
+
+
+Prevent renters from closing or bypassing the app
+
+
+Roles:
+
+
+Super Admin: full control, manage admins, view all sessions
+
+
+Admin: assign time, monitor PCs, force logout
+
+
+Renter: log in and play games only during active session
+
+
+Works offline over LAN, Windows 10/11 compatible, secure login, real-time sync.
+
+2️⃣ FULL DETAILED PROMPT (Advanced – Best Results)
+(You already saw this earlier, this is the enhanced finalized version)
+👉 Use the long prompt I previously gave you — it’s already optimized for AI builders and includes:
+
+
+Roles
+
+
+Dashboards
+
+
+Auto logout logic
+
+
+Security expectations
+
+
+Optional features
+
+
+This is ideal if Lovable Dev supports long structured prompts.
+
+3️⃣ RECOMMENDED TECH STACK (Very Important)
+✅ BEST OPTION (Most Practical)
+Architecture
+
+
+Client App (Gaming PCs)
+
+
+Electron.js (Windows desktop)
+
+
+Runs fullscreen / kiosk mode
+
+
+
+
+Admin Dashboard
+
+
+Web-based (same LAN)
+
+
+
+
+Backend Server
+
+
+Node.js + Express
+
+
+
+
+Database
+
+
+SQLite (small shop) or PostgreSQL (bigger shop)
+
+
+
+
+Why this works:
+
+
+Easy LAN networking
+
+
+Real-time updates
+
+
+One codebase for desktop + web
+
+
+Fast development
+
+
+
+🔁 Alternative (Windows Native)
+
+
+Client App: C# .NET (WPF or WinForms)
+
+
+Backend: ASP.NET Core
+
+
+Database: SQL Server Express
+
+
+✔ Better Windows integration
+❌ Slower to build, more complex
+
+🟢 Recommended for You
+Electron + Node.js + SQLite
+Simple, cheap, reliable, LAN-friendly.
+
+4️⃣ DATABASE DESIGN (Simple but Powerful)
+Tables
+users
+id
+username
+password_hash
+role (super_admin | admin | renter)
+created_at
+
+pcs
+id
+pc_name
+ip_address
+status (online/offline)
+
+sessions
+id
+user_id
+pc_id
+login_time
+logout_time
+assigned_minutes
+status (active/ended)
+
+admin_actions
+id
+admin_id
+action
+target_user
+timestamp
+
+
+5️⃣ SOFTWARE REQUIREMENTS DOCUMENT (SRD)
+Project Name
+PC Gaming Rental Management System
+
+Objective
+To monitor and control gaming time in a PC rental shop by enforcing login-based access and automatic logout.
+
+Functional Requirements
+
+
+User authentication (Super Admin, Admin, Renter)
+
+
+Session time tracking
+
+
+Auto logout when time expires
+
+
+Admin-controlled time assignment
+
+
+Game access restriction outside active sessions
+
+
+Real-time monitoring dashboard
+
+
+LAN-only operation
+
+
+
+Non-Functional Requirements
+
+
+Windows 10/11 compatibility
+
+
+LAN-based (no internet required)
+
+
+Secure authentication
+
+
+Low system resource usage
+
+
+Tamper-resistant
+
+
+
+Constraints
+
+
+Must not allow renters to bypass time limits
+
+
+Must auto-start on system boot
+
+
+Must close games on logout
+
+
+
+Assumptions
+
+
+All PCs are on the same network
+
+
+Admin PC acts as server
+
+
+Games are already installed on PCs
+
+
+
+6️⃣ EXTRA FEATURES YOU SHOULD CONSIDER (Real Shop Level)
+🔥 Highly recommended:
+
+
+Time packages (30m / 1h / 2h)
+
+
+Prepaid balance system
+
+
+PC lock screen on logout
+
+
+Sound alert before logout (5 min warning)
+
+
+Session history export (CSV)
+
+
+
+7️⃣ WHAT TO DO NEXT (Roadmap)
+
+
+Paste FULL PROMPT into Lovable Dev
+
+
+Choose Electron + Node.js
+
+
+Start with:
+
+
+Login screen
+
+
+Admin dashboard
+
+
+Session timer
+
+
+
+
+Add:
+
+
+Auto logout
+
+
+Game process killer
+
+
+
+
+Test on 2 PCs first (LAN)
+
+
+
+If you want, next I can:
+
+
+Design UI wireframes
+
+
+Write admin dashboard layout
+
+
+Create anti-bypass security logic
+
+
+Help you monetize this as a product
+
+
+Just say the word 🚀
