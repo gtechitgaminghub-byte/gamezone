@@ -11,8 +11,10 @@ import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
 
-// Helper to hash passwords (simple version for this demo)
-// In production, move to a proper auth utility
+/* =======================
+   PASSWORD HELPERS
+======================= */
+
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -20,17 +22,30 @@ async function hashPassword(password: string) {
 }
 
 async function comparePassword(stored: string, supplied: string) {
+  // 🚨 guard against bad / legacy passwords
+  if (!stored || !stored.includes(".")) {
+    return false;
+  }
+
   const [hashed, salt] = stored.split(".");
+  if (!hashed || !salt) return false;
+
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
+
+/* =======================
+   ROUTES
+======================= */
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Session setup
+
+  /* ===== SESSION ===== */
   app.use(session({
     secret: process.env.SESSION_SECRET || "dev_secret",
     resave: false,
@@ -41,14 +56,19 @@ export async function registerRoutes(
   app.use(passport.initialize());
   app.use(passport.session());
 
+  /* ===== PASSPORT ===== */
   passport.use(new LocalStrategy(async (username, password, done) => {
     try {
       const user = await storage.getUserByUsername(username);
-      if (!user) return done(null, false, { message: "Incorrect username." });
-      
-      const isValid = await comparePassword(user.password, password);
-      if (!isValid) return done(null, false, { message: "Incorrect password." });
-      
+      if (!user) {
+        return done(null, false, { message: "Invalid username or password" });
+      }
+
+      const valid = await comparePassword(user.password, password);
+      if (!valid) {
+        return done(null, false, { message: "Invalid username or password" });
+      }
+
       return done(null, user);
     } catch (err) {
       return done(err);
@@ -56,6 +76,7 @@ export async function registerRoutes(
   }));
 
   passport.serializeUser((user: any, done) => done(null, user.id));
+
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
@@ -65,44 +86,54 @@ export async function registerRoutes(
     }
   });
 
-  // === AUTH ROUTES ===
+  /* =======================
+     AUTH ROUTES
+  ======================= */
+
   app.post(api.auth.login.path, (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json(info);
+
       req.logIn(user, (err) => {
         if (err) return next(err);
-        return res.status(200).json(user);
+        res.status(200).json(user);
       });
     })(req, res, next);
   });
 
   app.post(api.auth.logout.path, (req, res) => {
     req.logout(() => {
-      res.status(200).json({ message: "Logged out" });
+      res.json({ message: "Logged out" });
     });
   });
 
   app.get(api.auth.me.path, (req, res) => {
-    if (req.isAuthenticated()) {
-      res.status(200).json(req.user);
-    } else {
-      res.status(401).json({ message: "Not authenticated" });
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
+    res.json(req.user);
   });
 
-  // === USER ROUTES ===
+  /* =======================
+     USERS
+  ======================= */
+
   app.get(api.users.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const users = await storage.getUsers();
-    res.json(users);
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    res.json(await storage.getUsers());
   });
 
   app.post(api.users.create.path, async (req, res) => {
     try {
       const input = api.users.create.input.parse(req.body);
-      const hashedPassword = await hashPassword(input.password);
-      const user = await storage.createUser({ ...input, password: hashedPassword });
+      const hashed = await hashPassword(input.password);
+
+      const user = await storage.createUser({
+        ...input,
+        password: hashed
+      });
+
       res.status(201).json(user);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -112,97 +143,60 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.users.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const id = parseInt(req.params.id);
-    const user = await storage.updateUser(id, req.body);
-    res.json(user);
-  });
+  /* =======================
+     PCS
+  ======================= */
 
-  app.delete(api.users.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const id = parseInt(req.params.id);
-    await storage.deleteUser(id);
-    res.status(204).send();
-  });
-
-  // === PC ROUTES ===
-  app.get(api.pcs.list.path, async (req, res) => {
-    const pcs = await storage.getPcs();
-    res.json(pcs);
+  app.get(api.pcs.list.path, async (_req, res) => {
+    res.json(await storage.getPcs());
   });
 
   app.post(api.pcs.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     const input = api.pcs.create.input.parse(req.body);
-    const pc = await storage.createPc(input);
-    res.status(201).json(pc);
+    res.status(201).json(await storage.createPc(input));
   });
 
-  app.put(api.pcs.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const id = parseInt(req.params.id);
-    const pc = await storage.updatePc(id, req.body);
-    res.json(pc);
-  });
+  /* =======================
+     SESSIONS
+  ======================= */
 
-  app.delete(api.pcs.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const id = parseInt(req.params.id);
-    await storage.deletePc(id);
-    res.status(204).send();
-  });
-
-  // === SESSION ROUTES ===
   app.get(api.sessions.list.path, async (req, res) => {
     const filters = {
-      active: req.query.active === 'true',
-      pcId: req.query.pcId ? parseInt(req.query.pcId as string) : undefined,
-      userId: req.query.userId ? parseInt(req.query.userId as string) : undefined
+      active: req.query.active === "true",
+      pcId: req.query.pcId ? Number(req.query.pcId) : undefined,
+      userId: req.query.userId ? Number(req.query.userId) : undefined
     };
+
     const sessions = await storage.getSessions(filters);
-    
-    // Enrich with user/pc details manually (for MVP, standard Join would be better)
-    const enriched = await Promise.all(sessions.map(async (s) => {
-      const user = await storage.getUser(s.userId);
-      const pc = await storage.getPc(s.pcId);
-      return { ...s, user, pc };
-    }));
-    
+
+    const enriched = await Promise.all(
+      sessions.map(async s => ({
+        ...s,
+        user: await storage.getUser(s.userId),
+        pc: await storage.getPc(s.pcId)
+      }))
+    );
+
     res.json(enriched);
   });
 
-  app.post(api.sessions.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const input = api.sessions.create.input.parse(req.body);
-    const session = await storage.createSession(input);
-    res.status(201).json(session);
-  });
+  /* =======================
+     SEED DATA
+  ======================= */
 
-  app.post(api.sessions.end.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send();
-    const id = parseInt(req.params.id);
-    const session = await storage.endSession(id);
-    res.json(session);
-  });
-
-  // === STATS ===
-  app.get(api.stats.get.path, async (req, res) => {
-    const stats = await storage.getStats();
-    res.json(stats);
-  });
-
-  // Seed Data
   if ((await storage.getUsers()).length === 0) {
+    console.log("🌱 Seeding admin user");
+
     const adminPassword = await hashPassword("admin");
+
     await storage.createUser({
       username: "admin",
-      password: adminPassword,
+      password: "Admin@123",
       role: "super_admin",
       balanceMinutes: 9999
     });
-    
-    // Seed PCs
+
     await storage.createPc({ name: "Gaming-01", ipAddress: "192.168.1.101", status: "online" });
     await storage.createPc({ name: "Gaming-02", ipAddress: "192.168.1.102", status: "offline" });
     await storage.createPc({ name: "Gaming-03", ipAddress: "192.168.1.103", status: "in_session" });
@@ -210,3 +204,4 @@ export async function registerRoutes(
 
   return httpServer;
 }
+
